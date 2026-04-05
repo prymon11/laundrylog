@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LaundryLog">
+<title>LaundryLog</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Rajdhani', sans-serif; background: #0e0e10; color: #c8c8c8; min-height: 100vh; padding-bottom: env(safe-area-inset-bottom); }
+
+  .nav { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; border-bottom: 1px solid #1f1f23; padding-top: calc(14px + env(safe-area-inset-top)); }
+  .nav-brand { display: flex; align-items: center; gap: 10px; }
+  .nav-icon { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #3a8eff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .nav-icon::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #3a8eff; }
+  .nav-title { font-family: 'Rajdhani', sans-serif; font-weight: 600; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: #e8e8e8; }
+  .nav-sub { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #555; letter-spacing: 1px; text-transform: uppercase; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 12px; border: none; background: none; color: #888; cursor: pointer; border-radius: 4px; transition: all 0.15s; }
+  .nav-tab.active { background: #3a8eff; color: #fff; }
+  .nav-tab:active:not(.active) { color: #ddd; background: #1a1a1e; }
+
+  .sync-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px; background: #0a0a0c; border-bottom: 1px solid #1a1a1e; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; color: #555; }
+  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: #444; flex-shrink: 0; }
+  .sync-dot.synced { background: #2a9d5c; }
+  .sync-dot.syncing { background: #e8a210; animation: blink 0.8s ease-in-out infinite; }
+  .sync-dot.error { background: #e85050; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .view { display: none; padding: 20px; }
+  .view.active { display: block; }
+
+  .machines-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .machine-card { background: #13131a; border: 1px solid #222228; border-radius: 10px; padding: 22px 14px 18px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color 0.2s; }
+  .machine-card.running { border-color: #3a8eff44; }
+  .machine-card.running.dryer { border-color: #e8a21044; }
+  .machine-icon { width: 44px; height: 44px; }
+  .machine-icon svg { width: 100%; height: 100%; }
+  .machine-name { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 3px; color: #aaa; text-transform: uppercase; }
+  .machine-status { font-size: 13px; color: #666; }
+  .machine-timer { font-family: 'Share Tech Mono', monospace; font-size: 22px; color: #e8e8e8; letter-spacing: 2px; min-height: 28px; }
+  .machine-avg { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #555; }
+  .machine-start-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #555; min-height: 13px; }
+
+  .load-select-wrap { width: 100%; }
+  .load-select { width: 100%; background: #0e0e10; border: 1px solid #333; border-radius: 4px; color: #bbb; padding: 7px 10px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 1px; cursor: pointer; appearance: none; text-align: center; }
+  .load-select:focus { outline: none; border-color: #3a8eff66; }
+  .load-select option { background: #13131a; color: #ccc; }
+
+  .start-btn { width: 100%; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; background: none; border: 1px solid; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+  .start-btn.washer-btn { border-color: #3a8eff; color: #3a8eff; }
+  .start-btn.washer-btn:active { background: #3a8eff30; color: #7bbeff; }
+  .start-btn.dryer-btn { border-color: #e8a210; color: #e8a210; }
+  .start-btn.dryer-btn:active { background: #e8a21030; color: #f0c060; }
+  .start-btn.stop { border-color: #666; color: #aaa; }
+  .start-btn.stop:active { border-color: #e85050; color: #e85050; background: #e8505018; }
+  .start-btn:active { transform: scale(0.97); }
+
+  .sub-actions { display: flex; gap: 6px; width: 100%; }
+  .sub-btn { flex: 1; padding: 7px 4px; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; background: none; border: 1px solid #333; color: #888; border-radius: 4px; cursor: pointer; }
+  .sub-btn:active { border-color: #666; color: #ddd; background: #1a1a1e; }
+  .sub-btn.discard { border-color: #3a2020; color: #885050; }
+  .sub-btn.discard:active { border-color: #e85050; color: #e85050; background: #e8505012; }
+
+  .add-session-btn { width: 100%; max-width: 600px; margin: 0 auto; display: block; padding: 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; background: none; border: 1px dashed #333; color: #777; border-radius: 8px; cursor: pointer; }
+  .add-session-btn:active { border-color: #666; color: #bbb; background: #13131a; }
+
+  .hint { text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #333; margin-top: 20px; letter-spacing: 0.5px; max-width: 600px; margin-left: auto; margin-right: auto; }
+
+  .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; max-width: 700px; margin-left: auto; margin-right: auto; }
+  .history-header h2 { font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: 2px; color: #666; text-transform: uppercase; }
+  .history-list { max-width: 700px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+  .session-row { background: #13131a; border: 1px solid #1e1e24; border-radius: 8px; padding: 12px 14px; display: flex; align-items: center; gap: 12px; }
+  .session-machine-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-washer { background: #3a8eff; }
+  .dot-dryer { background: #e8a210; }
+  .session-info { flex: 1; min-width: 0; }
+  .session-top { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+  .session-name { font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 1px; color: #aaa; text-transform: uppercase; }
+  .session-load-tag { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #3a8eff; background: #3a8eff18; border: 1px solid #3a8eff30; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+  .session-load-tag.dryer-tag { color: #e8a210; background: #e8a21018; border-color: #e8a21030; }
+  .session-dur { font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #e8e8e8; white-space: nowrap; }
+  .session-times { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #444; margin-top: 3px; }
+  .row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .icon-btn { background: none; border: 1px solid #2a2a30; padding: 5px 10px; border-radius: 4px; color: #666; font-size: 11px; cursor: pointer; font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; }
+  .icon-btn:active { border-color: #555; color: #ddd; background: #1a1a1e; }
+  .icon-btn.del { border-color: #2a2020; color: #774444; }
+  .icon-btn.del:active { border-color: #e85050; color: #e85050; background: #e8505012; }
+  .empty-history { text-align: center; padding: 3rem; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #333; letter-spacing: 1px; }
+
+  .export-row { display: flex; gap: 8px; max-width: 700px; margin: 16px auto 0; }
+  .export-btn { flex: 1; padding: 10px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; background: none; border: 1px solid #333; color: #777; border-radius: 6px; cursor: pointer; }
+  .export-btn:active { border-color: #666; color: #ccc; background: #13131a; }
+  .export-btn.sheets-btn { border-color: #2a9d5c44; color: #2a9d5c; }
+  .export-btn.sheets-btn:active { border-color: #2a9d5c; background: #2a9d5c18; }
+  .export-btn.sheets-btn.not-configured { border-color: #333; color: #555; }
+
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; max-width: 700px; margin: 0 auto 24px; }
+  .stat-card { background: #13131a; border: 1px solid #1e1e24; border-radius: 8px; padding: 14px; }
+  .stat-label { font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1.5px; color: #555; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-val { font-family: 'Share Tech Mono', monospace; font-size: 20px; color: #e8e8e8; }
+  .stat-sub { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #444; margin-top: 4px; }
+
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; align-items: flex-end; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #13131a; border: 1px solid #2a2a30; border-radius: 16px 16px 0 0; padding: 24px 20px; padding-bottom: calc(24px + env(safe-area-inset-bottom)); width: 100%; max-width: 500px; }
+  .modal-handle { width: 36px; height: 4px; background: #333; border-radius: 2px; margin: 0 auto 20px; }
+  .modal h2 { font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #aaa; margin-bottom: 20px; }
+  .form-row { margin-bottom: 14px; }
+  .form-row label { display: block; font-family: 'Share Tech Mono', monospace; font-size: 10px; letter-spacing: 1px; color: #555; text-transform: uppercase; margin-bottom: 6px; }
+  .form-row select, .form-row input[type="datetime-local"], .form-row input[type="text"], .form-row input[type="url"] {
+    width: 100%; background: #0e0e10; border: 1px solid #2a2a30; border-radius: 6px; color: #bbb; padding: 10px 12px; font-family: 'Share Tech Mono', monospace; font-size: 12px;
+  }
+  .form-row input::placeholder { color: #444; }
+  .form-row select:focus, .form-row input:focus { outline: none; border-color: #3a8eff55; }
+  .form-row select option { background: #13131a; }
+  .form-hint { font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #444; margin-top: 6px; line-height: 1.5; letter-spacing: 0.3px; }
+  .form-hint a { color: #3a8eff; text-decoration: none; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-actions button { flex: 1; padding: 12px; font-family: 'Share Tech Mono', monospace; font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; border-radius: 8px; cursor: pointer; }
+  .btn-cancel { background: #1a1a1e; border: 1px solid #2a2a30; color: #777; }
+  .btn-cancel:active { border-color: #555; color: #ccc; }
+  .btn-save { background: #3a8eff; border: none; color: #fff; }
+  .btn-save:active { background: #5aa3ff; }
+  .btn-green { background: #1a3a2a; border: 1px solid #2a9d5c55; color: #2a9d5c; }
+  .btn-green:active { background: #2a9d5c30; }
+
+  .new-load-row { display: flex; gap: 6px; margin-top: 8px; }
+  .new-load-input { flex: 1; background: #0e0e10; border: 1px solid #2a2a30; border-radius: 4px; color: #bbb; padding: 8px 10px; font-family: 'Share Tech Mono', monospace; font-size: 12px; }
+  .new-load-input:focus { outline: none; border-color: #3a8eff55; }
+  .new-load-add { padding: 8px 14px; font-family: 'Share Tech Mono', monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; background: none; border: 1px solid #3a8eff66; color: #3a8eff; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+  .new-load-add:active { background: #3a8eff20; }
+
+  .sheets-status { font-family: 'Share Tech Mono', monospace; font-size: 11px; text-align: center; padding: 10px; border-radius: 6px; margin-top: 12px; }
+  .sheets-status.ok { background: #1a3a2a; color: #2a9d5c; border: 1px solid #2a9d5c33; }
+  .sheets-status.err { background: #2a1a1a; color: #e85050; border: 1px solid #e8505033; }
+
+  .install-banner { display: none; background: #13131a; border-bottom: 1px solid #2a2a30; padding: 10px 20px; text-align: center; font-family: 'Share Tech Mono', monospace; font-size: 11px; color: #666; letter-spacing: 0.5px; }
+  .install-banner span { color: #3a8eff; }
+  .loading-screen { display: flex; align-items: center; justify-content: center; min-height: 200px; font-family: 'Share Tech Mono', monospace; font-size: 12px; color: #444; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+<div class="install-banner" id="install-banner">
+  Tap <span>Share</span> then <span>Add to Home Screen</span> to install
+</div>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <div class="nav-icon"></div>
+    <div>
+      <div class="nav-title">Laundry Log</div>
+      <div class="nav-sub">Home Edition</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('track')">Track</button>
+    <button class="nav-tab" onclick="switchTab('history')">History</button>
+    <button class="nav-tab" onclick="switchTab('stats')">Stats</button>
+  </div>
+</nav>
+
+<div class="sync-bar">
+  <div class="sync-dot synced" id="sync-dot"></div>
+  <span id="sync-label">ready</span>
+</div>
+
+<!-- TRACK -->
+<div class="view active" id="view-track">
+  <div class="loading-screen" id="loading">// loading...</div>
+  <div id="track-content" style="display:none;">
+    <div class="machines-grid">
+      <div class="machine-card" id="washer-card">
+        <div class="machine-icon">
+          <svg viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="22" stroke="#3a8eff" stroke-width="1.5"/>
+            <circle cx="26" cy="26" r="12" stroke="#3a8eff" stroke-width="1.5" opacity="0.5"/>
+            <circle cx="26" cy="26" r="4" fill="#3a8eff"/>
+          </svg>
+        </div>
+        <div class="machine-name">Washer</div>
+        <div class="machine-timer" id="washer-timer"></div>
+        <div class="machine-status" id="washer-status">Idle</div>
+        <div class="machine-start-label" id="washer-start-label"></div>
+        <div class="machine-avg" id="washer-avg">avg — per cycle</div>
+        <div class="load-select-wrap">
+          <select class="load-select" id="washer-load-select" onchange="onLoadChange('washer')"></select>
+        </div>
+        <button class="start-btn washer-btn" id="washer-btn" onclick="toggleCycle('washer')">Start</button>
+        <div class="sub-actions" id="washer-sub" style="display:none;">
+          <button class="sub-btn" onclick="openAdjust('washer')">Adjust</button>
+          <button class="sub-btn discard" onclick="deleteCycle('washer')">Discard</button>
+        </div>
+      </div>
+      <div class="machine-card" id="dryer-card">
+        <div class="machine-icon">
+          <svg viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="22" stroke="#e8a210" stroke-width="1.5"/>
+            <line x1="26" y1="4" x2="26" y2="48" stroke="#e8a210" stroke-width="1.5"/>
+            <line x1="4" y1="26" x2="48" y2="26" stroke="#e8a210" stroke-width="1.5"/>
+            <circle cx="26" cy="26" r="5" fill="#e8a210" opacity="0.8"/>
+          </svg>
+        </div>
+        <div class="machine-name">Dryer</div>
+        <div class="machine-timer" id="dryer-timer"></div>
+        <div class="machine-status" id="dryer-status">Idle</div>
+        <div class="machine-start-label" id="dryer-start-label"></div>
+        <div class="machine-avg" id="dryer-avg">avg — per cycle</div>
+        <div class="load-select-wrap">
+          <select class="load-select" id="dryer-load-select" onchange="onLoadChange('dryer')"></select>
+        </div>
+        <button class="start-btn dryer-btn" id="dryer-btn" onclick="toggleCycle('dryer')">Start</button>
+        <div class="sub-actions" id="dryer-sub" style="display:none;">
+          <button class="sub-btn" onclick="openAdjust('dryer')">Adjust</button>
+          <button class="sub-btn discard" onclick="deleteCycle('dryer')">Discard</button>
+        </div>
+      </div>
+    </div>
+    <button class="add-session-btn" onclick="openAddSession()">+ Add Session Manually</button>
+    <p class="hint" id="track-hint">Select a load type and press START.</p>
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="view" id="view-history">
+  <div class="history-header"><h2>Session History</h2></div>
+  <div class="history-list" id="history-list"></div>
+  <div class="export-row">
+    <button class="export-btn" onclick="exportData('csv')">Export CSV</button>
+    <button class="export-btn" onclick="exportData('json')">Export JSON</button>
+  </div>
+  <div class="export-row" style="margin-top:8px;">
+    <button class="export-btn sheets-btn" id="sheets-sync-btn" onclick="syncToSheets()">Sync to Sheets</button>
+    <button class="export-btn" style="border-color:#555;color:#666;" onclick="openSheetsSetup()">⚙ Setup</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="view" id="view-stats">
+  <div class="stats-grid" id="stats-grid"></div>
+</div>
+
+<!-- Adjust Modal -->
+<div class="modal-overlay" id="adjust-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="adjust-title">Adjust</h2>
+    <div class="form-row"><label>Load type</label><select id="adjust-load"></select></div>
+    <div class="form-row"><label>Start time</label><input type="datetime-local" id="adjust-start"/></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('adjust-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveAdjust()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Session Modal -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Add Session Manually</h2>
+    <div class="form-row"><label>Machine</label><select id="add-machine"><option value="washer">Washer</option><option value="dryer">Dryer</option></select></div>
+    <div class="form-row"><label>Load type</label><select id="add-load"></select></div>
+    <div class="form-row"><label>Start time</label><input type="datetime-local" id="add-start"/></div>
+    <div class="form-row"><label>End time</label><input type="datetime-local" id="add-end"/></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('add-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveSession()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Session Modal -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Edit Session</h2>
+    <div class="form-row"><label>Machine</label><select id="edit-machine"><option value="washer">Washer</option><option value="dryer">Dryer</option></select></div>
+    <div class="form-row"><label>Load type</label><select id="edit-load"></select></div>
+    <div class="form-row"><label>Start time</label><input type="datetime-local" id="edit-start"/></div>
+    <div class="form-row"><label>End time</label><input type="datetime-local" id="edit-end"/></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('edit-modal')">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Manage Load Types Modal -->
+<div class="modal-overlay" id="loads-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Manage Load Types</h2>
+    <div class="form-row">
+      <label>Add new load type</label>
+      <div class="new-load-row">
+        <input type="text" class="new-load-input" id="new-load-input" placeholder="e.g. Delicates" maxlength="30" onkeydown="if(event.key==='Enter')addLoadType()"/>
+        <button class="new-load-add" onclick="addLoadType()">+ Add</button>
+      </div>
+    </div>
+    <div id="load-types-list" style="margin-top:4px;display:flex;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="btn-save" onclick="closeModal('loads-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sheets Setup Modal -->
+<div class="modal-overlay" id="sheets-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2>Google Sheets Setup</h2>
+    <div class="form-row">
+      <label>Web App URL</label>
+      <input type="url" id="sheets-url-input" placeholder="https://script.google.com/macros/s/..." />
+      <p class="form-hint">Paste the deployment URL from your Google Apps Script here. See setup instructions for details.</p>
+    </div>
+    <div id="sheets-test-status"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('sheets-modal')">Cancel</button>
+      <button class="btn-green" onclick="testSheetsUrl()">Test</button>
+      <button class="btn-save" onclick="saveSheetsUrl()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const STORAGE_KEY = 'laundrylog-v4';
+  const DEFAULT_LOADS = ['Colors', 'Whites', 'Gym', 'Shirts'];
+
+  let state = { activeCycles: { washer: null, dryer: null }, sessions: [], nextId: 1, loadTypes: [...DEFAULT_LOADS], sheetsUrl: '' };
+  let timerIntervals = { washer: null, dryer: null };
+  let adjustTarget = null, editTarget = null, saveTimeout = null;
+
+  function setSyncStatus(status, text) {
+    document.getElementById('sync-dot').className = 'sync-dot' + (status ? ' '+status : '');
+    document.getElementById('sync-label').textContent = text;
+  }
+
+  function loadFromStorage() {
+    setSyncStatus('syncing', 'loading...');
+    try {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) {
+        const saved = JSON.parse(s);
+        state = { ...state, ...saved };
+        if (!state.activeCycles) state.activeCycles = { washer: null, dryer: null };
+        if (!state.sessions) state.sessions = [];
+        if (!state.nextId) state.nextId = 1;
+        if (!state.loadTypes || !state.loadTypes.length) state.loadTypes = [...DEFAULT_LOADS];
+        if (!state.sheetsUrl) state.sheetsUrl = '';
+      }
+      setSyncStatus('synced', 'ready');
+    } catch(e) { setSyncStatus('error', 'load error'); }
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('track-content').style.display = 'block';
+    updateSheetsBtnState();
+    refreshAllLoadSelects();
+    ['washer','dryer'].forEach(m => { if (state.activeCycles[m]) startTimer(m); updateCycleUI(m); });
+    updateAvgs(); renderHistory(); renderStats();
+  }
+
+  function persistState() {
+    setSyncStatus('syncing', 'saving...');
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      setSyncStatus('synced', 'saved '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+    } catch(e) { setSyncStatus('error', 'save failed'); }
+  }
+
+  function scheduleSave() { clearTimeout(saveTimeout); saveTimeout = setTimeout(persistState, 400); }
+
+  function now() { return Date.now(); }
+  function fmt(ms) {
+    const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+    return h>0 ? h+'h '+String(m).padStart(2,'0')+'m' : String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+  }
+  function fmtDate(ts) { return new Date(ts).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  function toLocalInput(ts) { const d=new Date(ts); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,16); }
+
+  function buildLoadOptions(selectEl, selectedVal) {
+    selectEl.innerHTML = '';
+    state.loadTypes.forEach(lt => {
+      const opt = document.createElement('option');
+      opt.value = lt; opt.textContent = lt;
+      if (lt === selectedVal) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+    const manage = document.createElement('option');
+    manage.value = '__manage__'; manage.textContent = '+ Manage load types';
+    selectEl.appendChild(manage);
+  }
+
+  function refreshAllLoadSelects() {
+    ['washer','dryer'].forEach(m => {
+      const sel = document.getElementById(m+'-load-select');
+      buildLoadOptions(sel, state.activeCycles[m]?.load || state.loadTypes[0]);
+    });
+    ['adjust-load','add-load','edit-load'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) buildLoadOptions(el, state.loadTypes[0]);
+    });
+  }
+
+  function onLoadChange(machine) {
+    const sel = document.getElementById(machine+'-load-select');
+    if (sel.value === '__manage__') { sel.value = state.activeCycles[machine]?.load || state.loadTypes[0]; openManageLoads(); return; }
+    if (state.activeCycles[machine]) { state.activeCycles[machine].load = sel.value; scheduleSave(); }
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.nav-tab').forEach((t,i) => t.classList.toggle('active', ['track','history','stats'][i]===tab));
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById('view-'+tab).classList.add('active');
+    if (tab==='stats') renderStats();
+  }
+
+  function toggleCycle(machine) {
+    if (state.activeCycles[machine]) {
+      const c = state.activeCycles[machine];
+      state.sessions.unshift({ id: state.nextId++, machine, load: c.load || state.loadTypes[0], start: c.start, end: now() });
+      state.activeCycles[machine] = null;
+      clearInterval(timerIntervals[machine]); timerIntervals[machine] = null;
+    } else {
+      const sel = document.getElementById(machine+'-load-select');
+      const load = (sel && sel.value !== '__manage__') ? sel.value : state.loadTypes[0];
+      state.activeCycles[machine] = { start: now(), load };
+      startTimer(machine);
+    }
+    scheduleSave(); updateCycleUI(machine); renderHistory(); updateAvgs();
+  }
+
+  function startTimer(machine) {
+    clearInterval(timerIntervals[machine]);
+    timerIntervals[machine] = setInterval(() => {
+      if (!state.activeCycles[machine]) return;
+      document.getElementById(machine+'-timer').textContent = fmt(now()-state.activeCycles[machine].start);
+    }, 1000);
+  }
+
+  function updateCycleUI(machine) {
+    const c = state.activeCycles[machine];
+    const btn = document.getElementById(machine+'-btn');
+    const sub = document.getElementById(machine+'-sub');
+    const sel = document.getElementById(machine+'-load-select');
+    const card = document.getElementById(machine+'-card');
+    if (c) {
+      document.getElementById(machine+'-timer').textContent = fmt(now()-c.start);
+      document.getElementById(machine+'-status').textContent = 'Running';
+      document.getElementById(machine+'-start-label').textContent = 'started '+fmtDate(c.start);
+      btn.textContent = 'Stop'; btn.className = 'start-btn stop';
+      sub.style.display = 'flex';
+      if (sel) buildLoadOptions(sel, c.load || state.loadTypes[0]);
+      card.classList.add('running'); if(machine==='dryer') card.classList.add('dryer');
+      document.getElementById('track-hint').style.display = 'none';
+    } else {
+      document.getElementById(machine+'-timer').textContent = '';
+      document.getElementById(machine+'-status').textContent = 'Idle';
+      document.getElementById(machine+'-start-label').textContent = '';
+      btn.textContent = 'Start'; btn.className = 'start-btn '+(machine==='washer'?'washer':'dryer')+'-btn';
+      sub.style.display = 'none';
+      if (sel) buildLoadOptions(sel, state.loadTypes[0]);
+      card.classList.remove('running','dryer');
+      if (!state.activeCycles.washer && !state.activeCycles.dryer) document.getElementById('track-hint').style.display = '';
+    }
+  }
+
+  function updateAvgs() {
+    ['washer','dryer'].forEach(m => {
+      const sessions = state.sessions.filter(s=>s.machine===m);
+      const el = document.getElementById(m+'-avg');
+      if (!el) return;
+      if (!sessions.length) { el.textContent='avg — per cycle'; return; }
+      el.textContent = 'avg '+fmt(sessions.reduce((a,s)=>a+(s.end-s.start),0)/sessions.length)+' per cycle';
+    });
+  }
+
+  function openAdjust(machine) {
+    adjustTarget = machine;
+    document.getElementById('adjust-title').textContent = 'Adjust '+machine.charAt(0).toUpperCase()+machine.slice(1);
+    const c = state.activeCycles[machine];
+    buildLoadOptions(document.getElementById('adjust-load'), c?.load || state.loadTypes[0]);
+    document.getElementById('adjust-start').value = toLocalInput(c.start);
+    document.getElementById('adjust-modal').classList.add('open');
+  }
+
+  function saveAdjust() {
+    const val = document.getElementById('adjust-start').value;
+    const load = document.getElementById('adjust-load').value;
+    if (!val || load === '__manage__') return;
+    state.activeCycles[adjustTarget].start = new Date(val).getTime();
+    state.activeCycles[adjustTarget].load = load;
+    buildLoadOptions(document.getElementById(adjustTarget+'-load-select'), load);
+    scheduleSave(); updateCycleUI(adjustTarget); closeModal('adjust-modal');
+  }
+
+  function deleteCycle(machine) {
+    if (!confirm('Discard this active cycle?')) return;
+    clearInterval(timerIntervals[machine]); timerIntervals[machine] = null;
+    state.activeCycles[machine] = null;
+    scheduleSave(); updateCycleUI(machine);
+  }
+
+  function openAddSession() {
+    const d = new Date();
+    buildLoadOptions(document.getElementById('add-load'), state.loadTypes[0]);
+    document.getElementById('add-start').value = toLocalInput(d-3600000);
+    document.getElementById('add-end').value = toLocalInput(d.getTime());
+    document.getElementById('add-modal').classList.add('open');
+  }
+
+  function saveSession() {
+    const machine = document.getElementById('add-machine').value;
+    const load = document.getElementById('add-load').value;
+    const start = new Date(document.getElementById('add-start').value).getTime();
+    const end = new Date(document.getElementById('add-end').value).getTime();
+    if (!start||!end||end<=start||load==='__manage__') { alert('Please fill in all fields with a valid time range.'); return; }
+    state.sessions.unshift({ id: state.nextId++, machine, load, start, end });
+    state.sessions.sort((a,b)=>b.start-a.start);
+    scheduleSave(); renderHistory(); updateAvgs(); closeModal('add-modal');
+  }
+
+  function openEdit(id) {
+    const s = state.sessions.find(x=>x.id===id); if(!s) return;
+    editTarget = id;
+    document.getElementById('edit-machine').value = s.machine;
+    buildLoadOptions(document.getElementById('edit-load'), s.load || state.loadTypes[0]);
+    document.getElementById('edit-start').value = toLocalInput(s.start);
+    document.getElementById('edit-end').value = toLocalInput(s.end);
+    document.getElementById('edit-modal').classList.add('open');
+  }
+
+  function saveEdit() {
+    const idx = state.sessions.findIndex(s=>s.id===editTarget); if(idx===-1) return;
+    const machine = document.getElementById('edit-machine').value;
+    const load = document.getElementById('edit-load').value;
+    const start = new Date(document.getElementById('edit-start').value).getTime();
+    const end = new Date(document.getElementById('edit-end').value).getTime();
+    if (!start||!end||end<=start||load==='__manage__') { alert('Please fill in all fields.'); return; }
+    state.sessions[idx] = {...state.sessions[idx], machine, load, start, end};
+    state.sessions.sort((a,b)=>b.start-a.start);
+    scheduleSave(); renderHistory(); updateAvgs(); closeModal('edit-modal');
+  }
+
+  function deleteSession(id) {
+    if (!confirm('Delete this session?')) return;
+    state.sessions = state.sessions.filter(s=>s.id!==id);
+    scheduleSave(); renderHistory(); updateAvgs(); renderStats();
+  }
+
+  function openManageLoads() {
+    renderLoadTypesList();
+    document.getElementById('new-load-input').value = '';
+    document.getElementById('loads-modal').classList.add('open');
+  }
+
+  function renderLoadTypesList() {
+    document.getElementById('load-types-list').innerHTML = state.loadTypes.map((lt,i) => `
+      <div style="display:flex;align-items:center;gap:8px;background:#0e0e10;border:1px solid #222;border-radius:4px;padding:8px 12px;">
+        <span style="flex:1;font-family:'Share Tech Mono',monospace;font-size:12px;color:#aaa;">${lt}</span>
+        ${state.loadTypes.length > 1 ? `<button onclick="removeLoadType(${i})" style="background:none;border:1px solid #3a2020;color:#774444;font-family:'Share Tech Mono',monospace;font-size:10px;cursor:pointer;padding:4px 8px;border-radius:3px;">remove</button>` : ''}
+      </div>`).join('');
+  }
+
+  function addLoadType() {
+    const input = document.getElementById('new-load-input');
+    const val = input.value.trim();
+    if (!val) return;
+    if (state.loadTypes.includes(val)) { alert('That load type already exists.'); return; }
+    state.loadTypes.push(val);
+    input.value = '';
+    scheduleSave(); refreshAllLoadSelects(); renderLoadTypesList();
+  }
+
+  function removeLoadType(idx) {
+    if (state.loadTypes.length <= 1) return;
+    if (!confirm('Remove "'+state.loadTypes[idx]+'"?')) return;
+    state.loadTypes.splice(idx, 1);
+    scheduleSave(); refreshAllLoadSelects(); renderLoadTypesList();
+  }
+
+  function renderHistory() {
+    const list = document.getElementById('history-list');
+    if (!state.sessions.length) { list.innerHTML='<div class="empty-history">// no sessions recorded yet</div>'; return; }
+    list.innerHTML = state.sessions.map(s => {
+      const dur = s.end-s.start;
+      return `<div class="session-row">
+        <div class="session-machine-dot ${s.machine==='washer'?'dot-washer':'dot-dryer'}"></div>
+        <div class="session-info">
+          <div class="session-top">
+            <span class="session-name">${s.machine.toUpperCase()}</span>
+            <span class="session-load-tag ${s.machine==='washer'?'':'dryer-tag'}">${s.load||'—'}</span>
+            <span class="session-dur">${fmt(dur)}</span>
+          </div>
+          <div class="session-times">${fmtDate(s.start)} → ${fmtDate(s.end)}</div>
+        </div>
+        <div class="row-actions">
+          <button class="icon-btn" onclick="openEdit(${s.id})">edit</button>
+          <button class="icon-btn del" onclick="deleteSession(${s.id})">del</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function renderStats() {
+    const grid = document.getElementById('stats-grid');
+    const total = state.sessions.length;
+    const washers = state.sessions.filter(s=>s.machine==='washer');
+    const dryers = state.sessions.filter(s=>s.machine==='dryer');
+    const totalMs = state.sessions.reduce((a,s)=>a+(s.end-s.start),0);
+    const avgMs = total>0?totalMs/total:0;
+    const avgW = washers.length>0?washers.reduce((a,s)=>a+(s.end-s.start),0)/washers.length:0;
+    const avgD = dryers.length>0?dryers.reduce((a,s)=>a+(s.end-s.start),0)/dryers.length:0;
+    const loadCounts = {};
+    state.sessions.forEach(s=>{ loadCounts[s.load||'Unknown']=(loadCounts[s.load||'Unknown']||0)+1; });
+    const topLoad = Object.entries(loadCounts).sort((a,b)=>b[1]-a[1])[0];
+    grid.innerHTML = [
+      {label:'Total sessions',val:total,sub:'all time'},
+      {label:'Total time',val:totalMs>0?fmt(totalMs):'—',sub:'combined'},
+      {label:'Avg cycle',val:avgMs>0?fmt(avgMs):'—',sub:'all machines'},
+      {label:'Washer avg',val:avgW>0?fmt(avgW):'—',sub:washers.length+' session'+(washers.length!==1?'s':'')},
+      {label:'Dryer avg',val:avgD>0?fmt(avgD):'—',sub:dryers.length+' session'+(dryers.length!==1?'s':'')},
+      {label:'Top load',val:topLoad?topLoad[0]:'—',sub:topLoad?topLoad[1]+' session'+(topLoad[1]!==1?'s':''):'no data'},
+    ].map(s=>`<div class="stat-card"><div class="stat-label">${s.label}</div><div class="stat-val" style="font-size:${String(s.val).length>6?'14px':'20px'}">${s.val}</div><div class="stat-sub">${s.sub}</div></div>`).join('');
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+    refreshAllLoadSelects();
+    ['washer','dryer'].forEach(m => updateCycleUI(m));
+  }
+
+  function exportData(format) {
+    if (!state.sessions.length) { alert('No sessions to export yet.'); return; }
+    let content, filename, type;
+    if (format==='json') {
+      content = JSON.stringify(state.sessions.map(s=>({id:s.id,machine:s.machine,load:s.load||'',start:new Date(s.start).toISOString(),end:new Date(s.end).toISOString(),duration_minutes:Math.round((s.end-s.start)/60000)})),null,2);
+      filename='laundrylog.json'; type='application/json';
+    } else {
+      const rows=[['id','machine','load','start','end','duration_minutes']];
+      state.sessions.forEach(s=>rows.push([s.id,s.machine,s.load||'',new Date(s.start).toISOString(),new Date(s.end).toISOString(),Math.round((s.end-s.start)/60000)]));
+      content=rows.map(r=>r.join(',')).join('\n'); filename='laundrylog.csv'; type='text/csv';
+    }
+    const blob=new Blob([content],{type}),url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+  }
+
+  // ---- Google Sheets Sync ----
+
+  function updateSheetsBtnState() {
+    const btn = document.getElementById('sheets-sync-btn');
+    if (state.sheetsUrl) {
+      btn.classList.remove('not-configured');
+      btn.textContent = 'Sync to Sheets';
+    } else {
+      btn.classList.add('not-configured');
+      btn.textContent = 'Sync to Sheets (not set up)';
+    }
+  }
+
+  function openSheetsSetup() {
+    document.getElementById('sheets-url-input').value = state.sheetsUrl || '';
+    document.getElementById('sheets-test-status').innerHTML = '';
+    document.getElementById('sheets-modal').classList.add('open');
+  }
+
+  function saveSheetsUrl() {
+    const url = document.getElementById('sheets-url-input').value.trim();
+    state.sheetsUrl = url;
+    scheduleSave();
+    updateSheetsBtnState();
+    closeModal('sheets-modal');
+  }
+
+  async function testSheetsUrl() {
+    const url = document.getElementById('sheets-url-input').value.trim();
+    const statusEl = document.getElementById('sheets-test-status');
+    if (!url) { statusEl.innerHTML = '<div class="sheets-status err">Please enter a URL first.</div>'; return; }
+    statusEl.innerHTML = '<div class="sheets-status" style="background:#1a1a1e;color:#666;border:1px solid #333;">Testing connection...</div>';
+    try {
+      const payload = { sessions: [{ id: 0, machine: 'washer', load: 'Test', start: new Date().toISOString(), end: new Date().toISOString(), duration_minutes: 0 }] };
+      const resp = await fetch(url, { method: 'POST', body: JSON.stringify(payload) });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        statusEl.innerHTML = '<div class="sheets-status ok">Connection successful! Ready to sync.</div>';
+      } else {
+        statusEl.innerHTML = '<div class="sheets-status err">Script returned an error: ' + (data.message||'unknown') + '</div>';
+      }
+    } catch(e) {
+      statusEl.innerHTML = '<div class="sheets-status err">Could not connect. Check the URL and try again.</div>';
+    }
+  }
+
+  async function syncToSheets() {
+    if (!state.sheetsUrl) { openSheetsSetup(); return; }
+    if (!state.sessions.length) { alert('No sessions to sync yet.'); return; }
+    setSyncStatus('syncing', 'syncing to sheets...');
+    const payload = {
+      sessions: state.sessions.map(s => ({
+        id: s.id, machine: s.machine, load: s.load || '',
+        start: new Date(s.start).toISOString(),
+        end: new Date(s.end).toISOString(),
+        duration_minutes: Math.round((s.end-s.start)/60000)
+      }))
+    };
+    try {
+      const resp = await fetch(state.sheetsUrl, { method: 'POST', body: JSON.stringify(payload) });
+      const data = await resp.json();
+      if (data.status === 'ok') {
+        setSyncStatus('synced', 'synced '+data.rows+' rows to sheets');
+      } else {
+        setSyncStatus('error', 'sheets sync failed');
+        alert('Sync failed: ' + (data.message || 'unknown error'));
+      }
+    } catch(e) {
+      setSyncStatus('error', 'sheets sync failed');
+      alert('Could not reach Google Sheets. Check your connection and setup URL.');
+    }
+  }
+
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !window.navigator.standalone) {
+    document.getElementById('install-banner').style.display = 'block';
+  }
+
+  loadFromStorage();
+</script>
+</body>
+</html>
